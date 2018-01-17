@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/KitlerUA/xlsxparser/config"
+	"github.com/KitlerUA/xlsxparser/policy"
 	"github.com/KitlerUA/xlsxparser/xlsxparser"
 )
 
@@ -20,18 +21,10 @@ import (
 //also returns warning message
 func Parse(fileName, dir string) (string, error) {
 	var warn string
+	var err error
 	//if dir empty - save on current directory
-	if dir == "" {
-		var err error
-		if dir, err = filepath.Abs(filepath.Dir(os.Args[0])); err != nil {
-			return warn, err
-		}
-		dir += "/"
-	} else {
-		//if directory doesn't exist - return error
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			return warn, err
-		}
+	if dir, err = checkDir(dir); err != nil {
+		return warn, err
 	}
 	//initialize config
 	if e := config.Init(); e != nil {
@@ -40,7 +33,6 @@ func Parse(fileName, dir string) (string, error) {
 	var (
 		records  map[string][][]string
 		bindings map[string][][]string
-		err      error
 		ext      string
 	)
 
@@ -58,23 +50,15 @@ func Parse(fileName, dir string) (string, error) {
 	//iterate throw records
 	for k := range records {
 		dirName := dir + time.Now().Format("2006-01-02_15-04-05") + "_" + k
-		if err := os.Mkdir(dirName, os.ModePerm); err != nil && !os.IsExist(err) {
+		if err = os.Mkdir(dirName, os.ModePerm); err != nil && !os.IsExist(err) {
 			return warn, fmt.Errorf("cannot create directory for policies: %s", err)
 		}
 		policies, warnings := xlsxparser.Parse(records[k], bindings[k])
-		for _, p := range policies {
-			marshaledPolicies, err := json.Marshal(&p)
-			if err != nil {
-				return warn, fmt.Errorf("cannot marshal policy '%s' : %s", p.Name, err)
-			}
-			newName := ReplaceRuneWith(p.FileName, ':', '_')
-			newName = ReplaceRuneWith(newName, '*', '_')
-			if err = ioutil.WriteFile(dirName+"/"+newName+".json", marshaledPolicies, 0666); err != nil {
-				return warn, fmt.Errorf("cannot save json file for policy '%s': %s", p.Name, err)
-			}
-		}
 		for _, w := range warnings {
 			warn += fmt.Sprintf("<b>%s</b>: %s<br>", k, w)
+		}
+		if err = writePolicies(policies, dirName); err != nil {
+			return warn, err
 		}
 	}
 	return warn, nil
@@ -91,4 +75,35 @@ func ReplaceRuneWith(str string, char1, char2 rune) string {
 		}
 	}
 	return buffer.String()
+}
+
+func writePolicies(policies []policy.Policy, dirName string) error {
+	for _, p := range policies {
+		marshaledPolicies, err := json.Marshal(&p)
+		if err != nil {
+			return fmt.Errorf("cannot marshal policy '%s' : %s", p.Name, err)
+		}
+		newName := ReplaceRuneWith(p.FileName, ':', '_')
+		newName = ReplaceRuneWith(newName, '*', '_')
+		if err = ioutil.WriteFile(dirName+"/"+newName+".json", marshaledPolicies, 0666); err != nil {
+			return fmt.Errorf("cannot save json file for policy '%s': %s", p.Name, err)
+		}
+	}
+	return nil
+}
+
+func checkDir(dir string) (string, error) {
+	if dir == "" {
+		var err error
+		if dir, err = filepath.Abs(filepath.Dir(os.Args[0])); err != nil {
+			return "", err
+		}
+		dir += "/"
+	} else {
+		//if directory doesn't exist - return error
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			return "", err
+		}
+	}
+	return dir, nil
 }
