@@ -11,6 +11,8 @@ import (
 
 const missing = "MISSING"
 
+//Parse - accept records and bindings as matrix
+//return slice of policies and warnings
 func Parse(records [][]string, bindings [][]string) ([]policy.Policy, []string) {
 	var warnings []string
 	if len(records) == 1 {
