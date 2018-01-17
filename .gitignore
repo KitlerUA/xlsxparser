@@ -1,0 +1,5 @@
+.idea
+*.json
+*.xlsx
+*.xml
+*.desktop
