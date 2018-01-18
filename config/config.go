@@ -1,13 +1,13 @@
 package config
 
 import (
-	"sync"
-	"path/filepath"
-	"os"
-	"io/ioutil"
-	"fmt"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 )
 
 //Config - contains some configuration data
@@ -24,8 +24,8 @@ type Config struct {
 
 var (
 	config *Config
-	once sync.Once
-	e error
+	once   sync.Once
+	e      error
 )
 
 //Init - read config from file and send error in given channel
@@ -43,7 +43,10 @@ func Get() Config {
 }
 
 func loadConfig() error {
-	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		return fmt.Errorf("cannot find location of executable: %s", err)
+	}
 	data, err := ioutil.ReadFile(dir + "/config.json")
 	if err != nil {
 		return fmt.Errorf("cannot find config file: %s<br>Please, add config file and restart program", err)
